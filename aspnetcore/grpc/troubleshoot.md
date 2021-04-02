@@ -175,15 +175,13 @@ The WPF application can use the gRPC generated types from the new class library 
 In the sample below the address's path is ignored and the gRPC call is sent to `https://localhost:5001/greet.Greeter/SayHello`.
 
 ```csharp
-var channel = GrpcChannel.ForAddress("https://localhost:5001/this_path_not_used");
+var channel = GrpcChannel.ForAddress("https://localhost:5001/this_path_is_ignored");
 var client = new Greet.GreeterClient(channel);
 
 var reply = await client.SayHelloAsync(new HelloRequest { Name = ".NET" });
 ```
 
-There are some scenarios when an app needs to include a path with gRPC calls. For example, the ASP.NET Core gRPC app is hosted in an IIS sub-directory.
-
-When the path is required it can be added to the gRPC call using the custom `SubdirectoryHandler` specified below:
+There are some scenarios when an app needs to include a path with gRPC calls. For example, the ASP.NET Core gRPC app is hosted in an IIS sub-directory. When the path is required it can be added to the gRPC call using the custom `SubdirectoryHandler` specified below:
 
 ```csharp
 /// <summary>
