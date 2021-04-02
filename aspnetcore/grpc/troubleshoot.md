@@ -168,4 +168,54 @@ You can workaround this issue by:
 
 The WPF application can use the gRPC generated types from the new class library project.
 
+## Calling gRPC services hosted in a sub-directory
+
+.NET gRPC clients won't use the path included with the address. The path is ignored because gRPC services have a standardized address structure. A gRPC service's address uses its package, service and method name: `/Package.Service/Method`.
+
+In the sample below the address's path is ignored and the gRPC call is sent to `https://localhost:5001/greet.Greeter/SayHello`.
+
+```csharp
+var channel = GrpcChannel.ForAddress("https://localhost:5001/this_path_not_used");
+var client = new Greet.GreeterClient(channel);
+
+var reply = await client.SayHelloAsync(new HelloRequest { Name = ".NET" });
+```
+
+There are some scenarios when an app needs to include a path with gRPC calls. For example, the ASP.NET Core gRPC app is hosted in an IIS sub-directory.
+
+When the path is required it can be added to the gRPC call using the custom `SubdirectoryHandler` specified below:
+
+```csharp
+/// <summary>
+/// A delegating handler that will add a subdirectory to the URI of gRPC requests.
+/// </summary>
+public class SubdirectoryHandler : DelegatingHandler
+{
+    private readonly string _subdirectory;
+
+    public SubdirectoryHandler(HttpMessageHandler innerHandler, string subdirectory) : base(innerHandler)
+    {
+        _subdirectory = subdirectory;
+    }
+
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        var url = $"{request.RequestUri.Scheme}://{request.RequestUri.Host}{_subdirectory}{request.RequestUri.AbsolutePath}";
+        request.RequestUri = new Uri(url, UriKind.Absolute);
+        return base.SendAsync(request, cancellationToken);
+    }
+}
+```
+
+In the sample below `SubdirectoryHandler` adds a path and the gRPC call is sent to `https://localhost:5001/TestSubdirectory/greet.Greeter/SayHello`.
+
+```csharp
+var handler = new SubdirectoryHandler(new HttpClientHandler(), "/TestSubdirectory");
+
+var channel = GrpcChannel.ForAddress("https://localhost:5001", new GrpcChannelOptions { HttpHandler = handler });
+var client = new Greet.GreeterClient(channel);
+
+var reply = await client.SayHelloAsync(new HelloRequest { Name = ".NET" });
+```
+
 [!INCLUDE[](~/includes/gRPCazure.md)]
